@@ -1,0 +1,1073 @@
+{
+  "info": {
+    "name": "Pedidos de papelería · validación de contrato",
+    "description": "Casos TC-01 a TC-14 de matriz-pruebas.md. Ejecutar completa y en orden (usa SETUP como primera solicitud).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "SETUP · Reiniciar datos controlados",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{baseUrl}}/__test/reset"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('SETUP · reinicio devuelve identificadores controlados', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.anaOrderIds).to.have.lengthOf(5);",
+              "  pm.expect(body.luisOrderIds).to.have.lengthOf(1);",
+              "  body.anaOrderIds.forEach((id, i) => pm.collectionVariables.set('ana' + (i + 1), id));",
+              "  pm.collectionVariables.set('luis1', body.luisOrderIds[0]);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-01 · Listar página intermedia y aislamiento entre usuarios",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?page=2&limit=2"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-01 · 200 y esquema de lista', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.response.to.have.jsonSchema(S('schemaList'));",
+              "});",
+              "pm.test('TC-01 · metadatos de paginación (page 2, limit 2, total 5, totalPages 3)', () => {",
+              "  pm.expect(body.page).to.equal(2); pm.expect(body.limit).to.equal(2);",
+              "  pm.expect(body.total).to.equal(5); pm.expect(body.totalPages).to.equal(3);",
+              "});",
+              "pm.test('TC-01 · segmento esperado y solo pedidos propios', () => {",
+              "  pm.expect(body.data.map((o) => o.id)).to.eql([V('ana3'), V('ana4')]);",
+              "  pm.expect(body.data.every((o) => o.ownerId === 'ana')).to.equal(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-02 (a) · Última página parcial",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?page=3&limit=2"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-02a · última página con un solo elemento', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.response.to.have.jsonSchema(S('schemaList'));",
+              "  pm.expect(body.data.map((o) => o.id)).to.eql([V('ana5')]);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-02 (b) · Página fuera de rango",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?page=4&limit=2"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-02b · página fuera de rango devuelve lista vacía con total intacto', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.data).to.eql([]);",
+              "  pm.expect(body.total).to.equal(5);",
+              "  pm.expect(body.totalPages).to.equal(3);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-03 (a) · Paginación inválida (limit=0)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?limit=0"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-03a · estado 400 y esquema de error', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-03a · código de error INVALID_PAGINATION', () => {",
+              "  pm.expect(body.error.code).to.equal('INVALID_PAGINATION');",
+              "});",
+              "pm.test('TC-03a · el detalle señala el parámetro erróneo', () => {",
+              "  pm.expect(body.error.details.map((d) => d.field)).to.include('limit');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-03 (b) · Paginación inválida (limit=51)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?limit=51"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-03b · estado 400 y esquema de error', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-03b · código de error INVALID_PAGINATION', () => {",
+              "  pm.expect(body.error.code).to.equal('INVALID_PAGINATION');",
+              "});",
+              "pm.test('TC-03b · el detalle señala el parámetro erróneo', () => {",
+              "  pm.expect(body.error.details.map((d) => d.field)).to.include('limit');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-03 (c) · Paginación inválida (page=abc)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?page=abc"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-03c · estado 400 y esquema de error', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-03c · código de error INVALID_PAGINATION', () => {",
+              "  pm.expect(body.error.code).to.equal('INVALID_PAGINATION');",
+              "});",
+              "pm.test('TC-03c · el detalle señala el parámetro erróneo', () => {",
+              "  pm.expect(body.error.details.map((d) => d.field)).to.include('page');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-04 · Sin credenciales",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/orders"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-04 · estado 401 y esquema de error', () => {",
+              "  pm.response.to.have.status(401);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-04 · código de error MISSING_CREDENTIALS', () => {",
+              "  pm.expect(body.error.code).to.equal('MISSING_CREDENTIALS');",
+              "});",
+              "pm.test('TC-04 · incluye WWW-Authenticate: Bearer', () => {",
+              "  pm.expect(pm.response.headers.get('WWW-Authenticate')).to.equal('Bearer');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-05 · Token inválido",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenInvalido}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-05 · estado 401 y esquema de error', () => {",
+              "  pm.response.to.have.status(401);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-05 · código de error INVALID_CREDENTIALS', () => {",
+              "  pm.expect(body.error.code).to.equal('INVALID_CREDENTIALS');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-06 · Leer pedido de otro usuario",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{luis1}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-06 · estado 403 y esquema de error', () => {",
+              "  pm.response.to.have.status(403);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-06 · código de error FORBIDDEN', () => {",
+              "  pm.expect(body.error.code).to.equal('FORBIDDEN');",
+              "});",
+              "pm.test('TC-06 · no filtra datos del pedido ajeno', () => {",
+              "  pm.expect(JSON.stringify(body)).to.not.include('Libro de cocina');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-07 · Pedido inexistente",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/ord-999"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-07 · estado 404 y esquema de error', () => {",
+              "  pm.response.to.have.status(404);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-07 · código de error NOT_FOUND', () => {",
+              "  pm.expect(body.error.code).to.equal('NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-08 (a) · Crear pedido válido",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"item\": \"Atlas escolar\",\n  \"quantity\": 3\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-08a · 201 y esquema de pedido', () => {",
+              "  pm.response.to.have.status(201);",
+              "  pm.response.to.have.jsonSchema(S('schemaOrder'));",
+              "});",
+              "pm.test('TC-08a · reglas de negocio: estado inicial y Location', () => {",
+              "  pm.expect(body.status).to.equal('created');",
+              "  pm.expect(body.statusChanges).to.equal(0);",
+              "  pm.expect(body.cancelledAt).to.equal(null);",
+              "  pm.expect(body.ownerId).to.equal('ana');",
+              "  pm.expect(pm.response.headers.get('Location')).to.equal('/orders/' + body.id);",
+              "  pm.collectionVariables.set('newId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-08 (b) · Consultar el pedido creado",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{newId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-08b · el pedido persiste con los datos enviados', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.response.to.have.jsonSchema(S('schemaOrder'));",
+              "  pm.expect(body.id).to.equal(V('newId'));",
+              "  pm.expect(body.item).to.equal('Atlas escolar');",
+              "  pm.expect(body.quantity).to.equal(3);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-08 (c) · El total aumenta en uno",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?limit=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-08c · total pasa de 5 a 6', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.total).to.equal(6);",
+              "  pm.collectionVariables.set('totalAfterCreate', String(body.total));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-09 (a) · Cantidad fuera de rango (0)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"item\": \"Atlas escolar\",\n  \"quantity\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-09a · estado 400 y esquema de error', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-09a · código de error VALIDATION_ERROR', () => {",
+              "  pm.expect(body.error.code).to.equal('VALIDATION_ERROR');",
+              "});",
+              "pm.test('TC-09a · el detalle señala quantity', () => {",
+              "  pm.expect(body.error.details.map((d) => d.field)).to.eql(['quantity']);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-09 (b) · Cantidad con tipo incorrecto (\"3\")",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"item\": \"Atlas escolar\",\n  \"quantity\": \"3\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-09b · estado 400 y esquema de error', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-09b · código de error VALIDATION_ERROR', () => {",
+              "  pm.expect(body.error.code).to.equal('VALIDATION_ERROR');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-09 (c) · Los datos inválidos no crearon nada",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?limit=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-09c · el total no cambió tras los rechazos', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(String(body.total)).to.equal(V('totalAfterCreate'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-10 (a) · Falta el campo obligatorio item",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 2\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-10a · estado 400 y esquema de error', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-10a · código de error VALIDATION_ERROR', () => {",
+              "  pm.expect(body.error.code).to.equal('VALIDATION_ERROR');",
+              "});",
+              "pm.test('TC-10a · el detalle señala item', () => {",
+              "  pm.expect(body.error.details.map((d) => d.field)).to.eql(['item']);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-10 (b) · JSON mal formado",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-10b · estado 400 y esquema de error', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-10b · código de error INVALID_JSON', () => {",
+              "  pm.expect(body.error.code).to.equal('INVALID_JSON');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-11 (a) · Primer POST idéntico",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"item\": \"Pedido repetido\",\n  \"quantity\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-11a · 201 y esquema', () => {",
+              "  pm.response.to.have.status(201);",
+              "  pm.response.to.have.jsonSchema(S('schemaOrder'));",
+              "  pm.collectionVariables.set('dupId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-11 (b) · Segundo POST idéntico crea otro recurso",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"item\": \"Pedido repetido\",\n  \"quantity\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-11b · 201 con identificador distinto (POST no es idempotente)', () => {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.id).to.not.equal(V('dupId'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-11 (c) · Efecto final: dos pedidos nuevos",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders?limit=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-11c · total = 6 + 2 = 8', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.total).to.equal(8);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-12 (a) · Primera cancelación",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{ana1}}/cancellation"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-12a · 200, esquema y estado cancelado', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.response.to.have.jsonSchema(S('schemaOrder'));",
+              "  pm.expect(body.status).to.equal('cancelled');",
+              "  pm.expect(body.statusChanges).to.equal(1);",
+              "  pm.expect(body.cancelledAt).to.be.a('string');",
+              "  pm.collectionVariables.set('cancelledAt', body.cancelledAt);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-12 (b) · Segunda cancelación (repetición)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{ana1}}/cancellation"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-12b · repetir no cambia el recurso', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.status).to.equal('cancelled');",
+              "  pm.expect(body.statusChanges).to.equal(1);",
+              "  pm.expect(body.cancelledAt).to.equal(V('cancelledAt'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-12 (c) · Efecto final observable con GET",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{ana1}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-12c · el estado final es el de una sola cancelación', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.response.to.have.jsonSchema(S('schemaOrder'));",
+              "  pm.expect(body.status).to.equal('cancelled');",
+              "  pm.expect(body.statusChanges).to.equal(1);",
+              "  pm.expect(body.cancelledAt).to.equal(V('cancelledAt'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-13 (a) · Cancelar pedido de otro usuario",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{luis1}}/cancellation"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-13a · estado 403 y esquema de error', () => {",
+              "  pm.response.to.have.status(403);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-13a · código de error FORBIDDEN', () => {",
+              "  pm.expect(body.error.code).to.equal('FORBIDDEN');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-13 (b) · El pedido ajeno no cambió",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenLuis}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{luis1}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-13b · el dueño ve su pedido intacto', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(body.status).to.equal('created');",
+              "  pm.expect(body.statusChanges).to.equal(0);",
+              "  pm.expect(body.cancelledAt).to.equal(null);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "TC-14 · Cancelar pedido inexistente",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenAna}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/ord-999/cancellation"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const S = (k) => JSON.parse(pm.collectionVariables.get(k));",
+              "const V = (k) => pm.collectionVariables.get(k);",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('TC-14 · estado 404 y esquema de error', () => {",
+              "  pm.response.to.have.status(404);",
+              "  pm.response.to.have.jsonSchema(S('schemaError'));",
+              "});",
+              "pm.test('TC-14 · código de error NOT_FOUND', () => {",
+              "  pm.expect(body.error.code).to.equal('NOT_FOUND');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "schemaOrder",
+      "value": "{\"type\":\"object\",\"required\":[\"id\",\"ownerId\",\"item\",\"quantity\",\"status\",\"statusChanges\",\"createdAt\",\"cancelledAt\"],\"additionalProperties\":false,\"properties\":{\"id\":{\"type\":\"string\",\"pattern\":\"^ord-[0-9]{3,}$\"},\"ownerId\":{\"type\":\"string\",\"enum\":[\"ana\",\"luis\"]},\"item\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":80},\"quantity\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100},\"status\":{\"type\":\"string\",\"enum\":[\"created\",\"cancelled\"]},\"statusChanges\":{\"type\":\"integer\",\"minimum\":0},\"createdAt\":{\"type\":\"string\"},\"cancelledAt\":{\"type\":[\"string\",\"null\"]}}}",
+      "type": "any"
+    },
+    {
+      "key": "schemaList",
+      "value": "{\"type\":\"object\",\"required\":[\"data\",\"page\",\"limit\",\"total\",\"totalPages\"],\"properties\":{\"data\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"id\",\"ownerId\",\"item\",\"quantity\",\"status\",\"statusChanges\",\"createdAt\",\"cancelledAt\"],\"additionalProperties\":false,\"properties\":{\"id\":{\"type\":\"string\",\"pattern\":\"^ord-[0-9]{3,}$\"},\"ownerId\":{\"type\":\"string\",\"enum\":[\"ana\",\"luis\"]},\"item\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":80},\"quantity\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":100},\"status\":{\"type\":\"string\",\"enum\":[\"created\",\"cancelled\"]},\"statusChanges\":{\"type\":\"integer\",\"minimum\":0},\"createdAt\":{\"type\":\"string\"},\"cancelledAt\":{\"type\":[\"string\",\"null\"]}}}},\"page\":{\"type\":\"integer\",\"minimum\":1},\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":50},\"total\":{\"type\":\"integer\",\"minimum\":0},\"totalPages\":{\"type\":\"integer\",\"minimum\":0}}}",
+      "type": "any"
+    },
+    {
+      "key": "schemaError",
+      "value": "{\"type\":\"object\",\"required\":[\"error\"],\"properties\":{\"error\":{\"type\":\"object\",\"required\":[\"code\",\"message\"],\"properties\":{\"code\":{\"type\":\"string\"},\"message\":{\"type\":\"string\"},\"details\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"required\":[\"field\",\"message\"]}}}}}}",
+      "type": "any"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "api-pedidos-validacion-postman-openapi",
+  "version": "1.0.0",
+  "description": "API de pedidos de papelería con contrato OpenAPI 3.1 y colección Postman automatizada.",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "TU NOMBRE",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test",
+    "build:collection": "node scripts/build-collection.js",
+    "collection": "newman run postman/orders.postman_collection.json -e postman/local.example.postman_environment.json -r cli,json --reporter-json-export evidence/latest-collection-result.json",
+    "evidence": "node scripts/demo-incompatibility.js",
+    "versions": "node -v && npm -v && newman -v"
+  },
+  "devDependencies": {
+    "newman": "^6.2.2"
+  }
+}

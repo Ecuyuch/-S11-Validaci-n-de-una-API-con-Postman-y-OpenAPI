@@ -1,0 +1,12 @@
+{
+  "escenario": "02 · Corrección verificada",
+  "falloInyectado": "ninguno",
+  "fecha": "2026-10-03T14:46:02.766Z",
+  "node": "v22.23.2",
+  "newman": "6.2.2",
+  "solicitudes": 28,
+  "aserciones": 51,
+  "asercionesFallidas": 0,
+  "casosEjecutados": 14,
+  "fallos": []
+}

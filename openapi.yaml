@@ -1,0 +1,192 @@
+openapi: 3.1.0
+info:
+  title: API de pedidos de papelería
+  version: 1.0.0
+  summary: Contrato de las operaciones evaluadas con la colección de Postman.
+  description: |
+    API local de ejemplo. Cada usuario solo puede ver y modificar sus propios pedidos.
+    `POST /orders` NO es idempotente: cada llamada crea un pedido nuevo.
+    `PUT /orders/{orderId}/cancellation` SÍ es idempotente: fija el estado destino
+    `cancelled`; repetirlo no cambia `statusChanges` ni `cancelledAt`.
+servers:
+  - url: http://localhost:3000
+security:
+  - bearerAuth: []
+tags:
+  - name: Pedidos
+paths:
+  /orders:
+    get:
+      tags: [Pedidos]
+      operationId: listOrders
+      summary: Lista los pedidos del usuario autenticado, con paginación.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Página de pedidos propios (vacía si `page` supera `totalPages`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderPage' }
+        '400': { $ref: '#/components/responses/InvalidPagination' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Pedidos]
+      operationId: createOrder
+      summary: Crea un pedido (no idempotente).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NewOrder' }
+            example: { item: Atlas escolar, quantity: 3 }
+      responses:
+        '201':
+          description: Pedido creado.
+          headers:
+            Location:
+              description: URL del pedido creado.
+              schema: { type: string, examples: [/orders/ord-007] }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /orders/{orderId}:
+    get:
+      tags: [Pedidos]
+      operationId: getOrder
+      summary: Consulta un pedido propio.
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pedido encontrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /orders/{orderId}/cancellation:
+    put:
+      tags: [Pedidos]
+      operationId: cancelOrder
+      summary: Cancela un pedido propio (idempotente, sin cuerpo).
+      description: |
+        Fija el estado destino `cancelled`. Repetir la llamada devuelve 200 con el mismo
+        recurso; `statusChanges` permanece en 1 y `cancelledAt` no cambia.
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Pedido cancelado (también si ya lo estaba).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token de demostración local (ver README).
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^ord-[0-9]{3,}$' }
+  schemas:
+    NewOrder:
+      type: object
+      required: [item, quantity]
+      additionalProperties: false
+      properties:
+        item: { type: string, minLength: 1, maxLength: 80 }
+        quantity: { type: integer, minimum: 1, maximum: 100 }
+    Order:
+      type: object
+      required: [id, ownerId, item, quantity, status, statusChanges, createdAt, cancelledAt]
+      additionalProperties: false
+      properties:
+        id: { type: string, pattern: '^ord-[0-9]{3,}$' }
+        ownerId: { type: string, enum: [ana, luis] }
+        item: { type: string, minLength: 1, maxLength: 80 }
+        quantity: { type: integer, minimum: 1, maximum: 100 }
+        status: { type: string, enum: [created, cancelled] }
+        statusChanges: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+    OrderPage:
+      type: object
+      required: [data, page, limit, total, totalPages]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Order' }
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1, maximum: 50 }
+        total: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [MISSING_CREDENTIALS, INVALID_CREDENTIALS, FORBIDDEN, NOT_FOUND,
+                     VALIDATION_ERROR, INVALID_JSON, INVALID_PAGINATION, ROUTE_NOT_FOUND, INTERNAL_ERROR]
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+  responses:
+    BadRequest:
+      description: Cuerpo inválido, campo obligatorio ausente o JSON mal formado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    InvalidPagination:
+      description: Parámetros `page` o `limit` fuera de rango o no enteros.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Credenciales ausentes o inválidas.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string, examples: [Bearer] }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: El pedido pertenece a otro usuario.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: El pedido no existe.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
