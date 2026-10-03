@@ -1,7 +1,7 @@
 {
   "escenario": "01 · Incompatibilidad detectada",
   "falloInyectado": "quantity_as_string",
-  "fecha": "2026-10-03T14:45:59.973Z",
+  "fecha": "2026-10-03T16:31:55.975Z",
   "node": "v22.23.2",
   "newman": "6.2.2",
   "solicitudes": 28,
@@ -42,7 +42,7 @@
     {
       "solicitud": "TC-12 (b) · Segunda cancelación (repetición)",
       "prueba": "TC-12b · repetir no cambia el recurso",
-      "mensaje": "expected '2026-10-03T14:45:59.446Z' to equal undefined"
+      "mensaje": "expected '2026-10-03T16:31:55.429Z' to equal undefined"
     },
     {
       "solicitud": "TC-12 (c) · Efecto final observable con GET",
